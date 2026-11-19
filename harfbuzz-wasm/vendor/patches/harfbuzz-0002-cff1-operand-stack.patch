@@ -1,0 +1,109 @@
+--- a/harfbuzz/src/hb-cff-specializer.hh	2026-11-19 01:05:12
++++ b/harfbuzz/src/hb-cff-specializer.hh	2026-11-19 01:07:24
+@@ -25,6 +25,34 @@
+   return n.to_real () == 0.;
+ }
+ 
++/* harfbuzz-wasm patch 2: the CFF2-to-CFF1 downgrade must leave no more operands on the stack than CFF1 allows (48;
++ * CFF2 allows 513). generalize_commands kept rcurveline, rlinecurve and the hh/vv/hv/vh curve operators as they came, so
++ * a CFF2 charstring's 56-operand rcurveline reached the CFF1 output (OTS: "Failed validating CharStrings INDEX"). As
++ * fontTools' generalizeCommands does, every one of them is broken into single rlineto and rrcurveto segments, which the
++ * combining passes below join within maxstack. Stem hints are not split: a stem operator over 48 operands (none in the
++ * test fonts) stays, and hbfont's output check refuses the font (cff1_check_stack). */
++static inline void
++push_line_ (hb_vector_t<cs_command_t> &out, const number_t &dx, const number_t &dy)
++{
++  cs_command_t seg (OpCode_rlineto);
++  seg.args.alloc (2);
++  seg.args.push (dx);
++  seg.args.push (dy);
++  out.push (seg);
++}
++
++static inline void
++push_curve_ (hb_vector_t<cs_command_t> &out,
++	     const number_t &dx1, const number_t &dy1, const number_t &dx2,
++	     const number_t &dy2, const number_t &dx3, const number_t &dy3)
++{
++  cs_command_t seg (OpCode_rrcurveto);
++  seg.args.alloc (6);
++  seg.args.push (dx1); seg.args.push (dy1); seg.args.push (dx2);
++  seg.args.push (dy2); seg.args.push (dx3); seg.args.push (dy3);
++  out.push (seg);
++}
++
+ /* Generalize CharString commands to canonical form
+  *
+  * Converts all operators to their general forms and breaks down
+@@ -126,6 +154,71 @@
+         break;
+       }
+ 
++      /* harfbuzz-wasm patch 2 (see push_line_): the remaining curve and line operators. A malformed operand count is
++       * kept as it came. */
++      case OpCode_rcurveline:  /* {dxa dya dxb dyb dxc dyc}+ dxd dyd */
++      {
++        const unsigned n = cmd.args.length;
++        if (n < 8 || (n - 2) % 6) { result.push (cmd); break; }
++        const auto &a = cmd.args;
++        for (unsigned j = 0; j + 2 < n; j += 6)
++          push_curve_ (result, a[j], a[j + 1], a[j + 2], a[j + 3], a[j + 4], a[j + 5]);
++        push_line_ (result, a[n - 2], a[n - 1]);
++        break;
++      }
++
++      case OpCode_rlinecurve:  /* {dxa dya}+ dxb dyb dxc dyc dxd dyd */
++      {
++        const unsigned n = cmd.args.length;
++        if (n < 8 || (n - 6) % 2) { result.push (cmd); break; }
++        const auto &a = cmd.args;
++        for (unsigned j = 0; j + 6 < n; j += 2)
++          push_line_ (result, a[j], a[j + 1]);
++        push_curve_ (result, a[n - 6], a[n - 5], a[n - 4], a[n - 3], a[n - 2], a[n - 1]);
++        break;
++      }
++
++      case OpCode_hhcurveto:  /* dy1? {dxa dxb dyb dxc}+ */
++      case OpCode_vvcurveto:  /* dx1? {dya dxb dyb dyc}+ */
++      {
++        const unsigned n = cmd.args.length;
++        const unsigned first = n & 1;
++        if (n - first < 4 || (n - first) % 4) { result.push (cmd); break; }
++        const auto &a = cmd.args;
++        number_t zero; zero.set_int (0);
++        for (unsigned j = first; j < n; j += 4)
++        {
++          const number_t &side = (first && j == first) ? a[0] : zero;
++          if (cmd.op == OpCode_hhcurveto)
++            push_curve_ (result, a[j], side, a[j + 1], a[j + 2], a[j + 3], zero);
++          else
++            push_curve_ (result, side, a[j], a[j + 1], a[j + 2], zero, a[j + 3]);
++        }
++        break;
++      }
++
++      case OpCode_hvcurveto:  /* curves alternating between a horizontal and a vertical start; a 5th operand ends the */
++      case OpCode_vhcurveto:  /* last curve off its axis */
++      {
++        const unsigned n = cmd.args.length;
++        if (n < 4 || (n % 4 != 0 && n % 4 != 1)) { result.push (cmd); break; }
++        const auto &a = cmd.args;
++        number_t zero; zero.set_int (0);
++        const unsigned curves = n / 4;
++        bool horizontal = cmd.op == OpCode_hvcurveto;
++        for (unsigned c = 0; c < curves; c++)
++        {
++          const unsigned j = 4 * c;
++          const number_t &last = (c + 1 == curves && n % 4 == 1) ? a[n - 1] : zero;
++          if (horizontal)
++            push_curve_ (result, a[j], zero, a[j + 1], a[j + 2], last, a[j + 3]);
++          else
++            push_curve_ (result, zero, a[j], a[j + 1], a[j + 2], a[j + 3], last);
++          horizontal = !horizontal;
++        }
++        break;
++      }
++
+       default:
+         /* Keep other operators as-is */
+         result.push (cmd);

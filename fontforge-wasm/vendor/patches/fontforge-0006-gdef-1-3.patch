@@ -1,0 +1,28 @@
+fontforge-wasm patch 6. Reason: readttfgdef returned at once for any GDEF version but 1.0 and 1.2, and a variable
+font's GDEF is version 1.3 (1.2's header and an Offset32 to an item variation store). A variable TrueType font
+converted with --allow-lossy therefore lost its GDEF: every glyph kept class 1 (none, set by parsettf.c before the
+GDEF is read), so the output classified no glyph and dropped the mark glyph sets, and HarfBuzz misplaced a second
+stacked mark. Version 1.3 is now read as 1.2. The variation store is ignored: FontForge writes the default master and
+the store holds only the deltas of other instances; every later read seeks explicitly, so the cursor need not pass
+the new offset. Owner's decision of 2026-11-18.
+
+--- a/fontforge/fontforge/parsettfatt.c
++++ b/fontforge/fontforge/parsettfatt.c
+@@ -3033,14 +3033,15 @@
+ 
+     fseek(ttf,info->gdef_start,SEEK_SET);
+     version = getlong(ttf);
+-    if ( version!=0x00010000 && version != 0x00010002 )
++    /* fontforge-wasm patch 6: 1.3 is 1.2 and an item variation store, read as 1.2 (a variable font's default master) */
++    if ( version!=0x00010000 && version != 0x00010002 && version != 0x00010003 )
+ return;
+     info->g_bounds = info->gdef_start + info->gdef_length;
+     gclass = getushort(ttf);
+     /* attach list = */ getushort(ttf);
+     lclo = getushort(ttf);		/* ligature caret list */
+     mac = getushort(ttf);		/* mark attach class */
+-    if ( version==0x00010002 )
++    if ( version>=0x00010002 )		/* fontforge-wasm patch 6 */
+ 	mas = getushort(ttf);
+ 
+     if ( gclass!=0 ) {

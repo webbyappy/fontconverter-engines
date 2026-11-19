@@ -1,0 +1,193 @@
+fontforge-wasm patch 1 (from spike S1). Reason: FontForge passes fputc through an incompatible function-pointer cast (int(*)(int,FILE*) called as void(*)(int,void*)) in its PostScript/EPS/PDF writers; WebAssembly traps on such indirect calls, so every Type 1 (.pfb/.pfa/.ps/CID) output aborted with "null function or function signature mismatch". Replaced by a correctly typed wrapper.
+
+--- a/fontforge/fontforge/dumppfa.h
++++ b/fontforge/fontforge/dumppfa.h
+@@ -2,6 +2,19 @@
+ #define FONTFORGE_DUMPPFA_H
+ 
+ #include "splinefont.h"
++
++#include <stdio.h>
++/* fontforge-wasm patch 1 (VENDORING.md): a correctly typed fputc callback */
++
++/* Callback for the dump* functions that writes one byte to a FILE*.
++ * The original code passed fputc itself through a cast,
++ *     (void (*)(int,void *)) fputc
++ * i.e. it called an int-returning function through a pointer to a
++ * void-returning one. Native ABIs tolerate that; WebAssembly traps on the
++ * indirect call ("function signature mismatch"). */
++static inline void FF_DumpCharToFile(int ch, void *data) {
++    fputc(ch, (FILE *) data);
++}
+ 
+ extern char *PSDictHasEntry(struct psdict *dict, const char *key);
+ extern double BlueScaleFigureForced(struct psdict *private_, real bluevalues[], real otherblues[]);
+--- a/fontforge/fontforge/dumppfa.c
++++ b/fontforge/fontforge/dumppfa.c
+@@ -2088,7 +2088,7 @@
+ 	fprintf( out, "%%!PS-TrueTypeFont\n" );	/* Ignore the ttf version info */
+ 	    /* Too hard to do right, and if done right doesn't mean much to */
+ 	    /* a human observer */
+-    dumpfontcomments((DumpChar)fputc,out,cidmaster!=NULL?cidmaster:sf,format);
++    dumpfontcomments(FF_DumpCharToFile,out,cidmaster!=NULL?cidmaster:sf,format);
+ 
+     if ( format == ff_type42cid ) {
+ 	fprintf( out, "/CIDInit /ProcSet findresource begin\n\n" );
+@@ -2129,8 +2129,8 @@
+     fm[2] = b.maxx / (sf->ascent+sf->descent);
+     fm[3] = b.maxy / (sf->ascent+sf->descent);
+     fprintf( out, "  ");
+-    dumpdblarray((DumpChar) fputc,out,"FontBBox",fm,4,"readonly ", true);
+-    dumpfontinfo((DumpChar) fputc,out,sf,format);
++    dumpdblarray(FF_DumpCharToFile,out,"FontBBox",fm,4,"readonly ", true);
++    dumpfontinfo(FF_DumpCharToFile,out,sf,format);
+ 
+     if ( sf->uniqueid==0 )
+ 	uniqueid = 4000000 + (rand()&0x3ffff);
+@@ -2238,25 +2238,25 @@
+     if ( format==ff_pfb || format==ff_mmb ) {
+ 	FILE *temp;
+ 	temp = GFileTmpfile();
+-	dumpinitialascii((DumpChar) fputc,temp,sf,format,map,fullsf,layer );
++	dumpinitialascii(FF_DumpCharToFile,temp,sf,format,map,fullsf,layer );
+ 	mkheadercopyfile(temp,out,1);
+ 	temp = GFileTmpfile();
+-	dumpencodedstuff((DumpChar) fputc,temp,sf,format,flags,map,layer);
++	dumpencodedstuff(FF_DumpCharToFile,temp,sf,format,flags,map,layer);
+ 	mkheadercopyfile(temp,out,2);
+ 	temp = GFileTmpfile();
+-	dumpfinalascii((DumpChar) fputc,temp,sf,format);
++	dumpfinalascii(FF_DumpCharToFile,temp,sf,format);
+ 	mkheadercopyfile(temp,out,1);
+ /* final header, 3=>eof??? */
+-	dumpstrn((DumpChar) fputc,out,"\200\003",2);
++	dumpstrn(FF_DumpCharToFile,out,"\200\003",2);
+     } else if ( format==ff_ptype3 ) {
+-	dumprequiredfontinfo((DumpChar) fputc,out,sf,ff_ptype3,map,NULL,layer);
+-	dumpcharprocs((DumpChar) fputc,out,sf);
++	dumprequiredfontinfo(FF_DumpCharToFile,out,sf,ff_ptype3,map,NULL,layer);
++	dumpcharprocs(FF_DumpCharToFile,out,sf);
+     } else if ( format==ff_type42 || format==ff_type42cid ) {
+ 	dumptype42(out,sf,format,flags,map,layer);
+     } else {
+-	dumpinitialascii((DumpChar) (fputc),out,sf,format,map,fullsf,layer );
+-	dumpencodedstuff((DumpChar) (fputc),out,sf,format,flags,map,layer);
+-	dumpfinalascii((DumpChar) (fputc),out,sf,format);
++	dumpinitialascii(FF_DumpCharToFile,out,sf,format,map,fullsf,layer );
++	dumpencodedstuff(FF_DumpCharToFile,out,sf,format,flags,map,layer);
++	dumpfinalascii(FF_DumpCharToFile,out,sf,format);
+     }
+ }
+ 
+@@ -2384,7 +2384,7 @@
+     if ( leniv==-1 )
+ 	fwrite(data,sizeof(uint8_t),len,binary);
+     else
+-	encodestrout((DumpChar) fputc,binary,data,len,leniv);
++	encodestrout(FF_DumpCharToFile,binary,data,len,leniv);
+ }
+ 
+ static void dump_index(FILE *binary,int size,int val) {
+@@ -2544,7 +2544,7 @@
+ /* Werner says this is inappropriate */
+     fprintf( out, "%%%%IncludeResource: ProcSet (CIDInit)\n" );
+     fprintf( out, "%%%%BeginResource: CIDFont (%s)\n", cidmaster->fontname );
+-    dumpfontcomments((DumpChar) fputc, out, cidmaster, ff_cid );
++    dumpfontcomments(FF_DumpCharToFile, out, cidmaster, ff_cid );
+ 
+     fprintf( out, "/CIDInit /ProcSet findresource begin\n\n" );
+ 
+@@ -2573,7 +2573,7 @@
+ 	}
+     }
+ 
+-    dumpfontinfo((DumpChar) fputc,out,cidmaster,ff_cid);
++    dumpfontinfo(FF_DumpCharToFile,out,cidmaster,ff_cid);
+ 
+     if ((binary = gencidbinarydata(cidmaster,&cidbytes,flags,map,layer))==NULL )
+ return( 0 );
+@@ -2602,7 +2602,7 @@
+ 	if ( sf->strokedfont )
+ 	    fprintf( out, "/StrokeWidth %g def\n", (double) sf->strokewidth );
+ 	fprintf( out, "\n  %%ADOBeginPrivateDict\n" );
+-	dumpprivatestuff((DumpChar) fputc,out,sf,&cidbytes.fds[i],flags,ff_cid,map,layer);
++	dumpprivatestuff(FF_DumpCharToFile,out,sf,&cidbytes.fds[i],flags,ff_cid,map,layer);
+ 	fprintf( out, "\n  %%ADOEndPrivateDict\n" );
+ 	fprintf( out, "  currentdict end\n%%ADOEndFontDict\n put\n\n" );
+     }
+@@ -2697,7 +2697,7 @@
+ 	   width*scale, height*scale,		/* x y Scale */
+ 	   width, height,
+ 	   width, -height);
+-    InitFilter(&ps,(DumpChar) fputc,file);
++    InitFilter(&ps,FF_DumpCharToFile,file);
+     if ( bdfc->bytes_per_line==(width+7)/8 )
+ 	FilterStr(&ps,(uint8_t *) bdfc->bitmap, height*bdfc->bytes_per_line);
+     else for ( i=0; i<height; ++i )
+@@ -2724,7 +2724,7 @@
+     else {
+     	for ( i=0; i<font->glyphcnt; i++ ) if ( font->glyphs[i] != NULL )
+     	    BCPrepareForOutput( font->glyphs[i],true );
+-	dumprequiredfontinfo((DumpChar) fputc, file, sf, ff_ptype3, map,NULL,ly_fore);
++	dumprequiredfontinfo(FF_DumpCharToFile, file, sf, ff_ptype3, map,NULL,ly_fore);
+ 
+ 	cnt = 0;
+ 	notdefpos = SFFindNotdef(sf,-2);
+--- a/fontforge/fontforge/cvexport.c
++++ b/fontforge/fontforge/cvexport.c
+@@ -151,7 +151,7 @@
+     fprintf( eps, "%%%%Page \"%s\" 1\n", sc->name );
+ 
+     fprintf( eps, "gsave newpath\n" );
+-    SC_PSDump((void (*)(int,void *)) fputc,eps,sc,true,false,layer);
++    SC_PSDump(FF_DumpCharToFile,eps,sc,true,false,layer);
+     if ( sc->parent->multilayer )
+ 	fprintf( eps, "grestore\n" );
+     else
+@@ -223,7 +223,7 @@
+     fprintf( pdf, " << /Length 5 0 R >> \n" );
+     fprintf( pdf, " stream \n" );
+     streamstart = ftell(pdf);
+-    SC_PSDump((void (*)(int,void *)) fputc,pdf,sc,true,true,layer);
++    SC_PSDump(FF_DumpCharToFile,pdf,sc,true,true,layer);
+     if ( sc->parent->multilayer )
+ 	/* Already filled or stroked */;
+     else if ( sc->parent->strokedfont )
+--- a/fontforge/fontforge/print.c
++++ b/fontforge/fontforge/print.c
+@@ -599,7 +599,7 @@
+ 	fprintf( pi->out, ">>\n" );
+ 	fprintf( pi->out, " stream \n" );
+ 	lenstart = ftell(pi->out);
+-	SC_PSDump((void (*)(int,void *)) fputc,pi->out,pattern_sc,true,true,ly_all);
++	SC_PSDump(FF_DumpCharToFile,pi->out,pattern_sc,true,true,ly_all);
+ 	len = ftell(pi->out)-lenstart;
+ 	fprintf( pi->out, " endstream\n" );
+ 	fprintf( pi->out, "endobj\n" );
+@@ -882,7 +882,7 @@
+     } else
+ 	fprintf( pi->out, "%d 0 d0\n", sc->width );
+ 
+-    SC_PSDump((void (*)(int,void *)) fputc,pi->out,sc,true,true,ly_fore);
++    SC_PSDump(FF_DumpCharToFile,pi->out,sc,true,true,ly_fore);
+ 
+     streamlength = ftell(pi->out)-streamstart;
+     fprintf( pi->out, "\nendstream\n" );
+@@ -1860,7 +1860,7 @@
+ 	fprintf(pi->out,"grestore\n" );
+ 	fprintf(pi->out,"gsave\n %g %g translate\n", (double) pi->xoff, (double) pi->yoff );
+ 	fprintf(pi->out," %g %g scale\n", (double) pi->scale, (double) pi->scale );
+-	SC_PSDump((void (*)(int,void *)) fputc,pi->out,sc,true,false,ly_fore);
++	SC_PSDump(FF_DumpCharToFile,pi->out,sc,true,false,ly_fore);
+ 	if ( sc->parent->multilayer )
+ 	    /* All done */;
+ 	else if ( sc->parent->strokedfont )
+@@ -1878,7 +1878,7 @@
+ 	fprintf(pi->out,"Q\n" );
+ 	fprintf(pi->out,"q \n %g 0 0 %g %g %g cm\n", (double) pi->scale, (double) pi->scale,
+ 		(double) pi->xoff, (double) pi->yoff );
+-	SC_PSDump((void (*)(int,void *)) fputc,pi->out,sc,true,true,ly_fore);
++	SC_PSDump(FF_DumpCharToFile,pi->out,sc,true,true,ly_fore);
+ 	if ( sc->parent->multilayer )
+ 	    /* All done */;
+ 	else if ( sc->parent->strokedfont )

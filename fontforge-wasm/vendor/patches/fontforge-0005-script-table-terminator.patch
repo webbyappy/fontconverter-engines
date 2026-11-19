@@ -1,0 +1,18 @@
+fontforge-wasm patch 5. Reason: FontForge 20230101's regenerated script table holds 117 entries per row, and the
+Arabic row uses all of them (its tag and 116 range values), so ScriptFromUnicode, which scans a row until a 0, reads
+past it into the next row (Samaritan): undefined behaviour for every code point it scans that far, and U+082D..U+0830
+taken for Arabic. The scan tests index k+1 with k odd, so after a full row it tests index 118: two more columns
+give every row the 0 the scan stops at. Found by the native UBSan run (P2 plan, C1;
+owner's decision of 2026-11-18).
+
+--- a/fontforge/fontforge/tottfgpos.c
++++ b/fontforge/fontforge/tottfgpos.c
+@@ -60,7 +60,7 @@
+ /* scripts (for opentype) that I understand */
+     /* see also list in lookups.c mapping script tags to friendly names */
+ 
+-static uint32_t scripts[][117] = {
++static uint32_t scripts[][119] = {	/* fontforge-wasm patch 5: every row ends in the 0 the scan tests (k+1 even) */
+ /* Adlam */	{ CHR('a','d','l','m'), 0x1e900, 0x1e94b, 0x1e950, 0x1e959, 0x1e95e, 0x1e95f },
+ /* Ahom */	{ CHR('a','h','o','m'), 0x11700, 0x1171a, 0x1171d, 0x1172b, 0x11730, 0x11746 },
+ /* Anatolian */	{ CHR('h','l','u','w'), 0x14400, 0x14646 },

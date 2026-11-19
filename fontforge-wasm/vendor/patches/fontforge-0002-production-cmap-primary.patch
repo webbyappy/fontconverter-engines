@@ -1,0 +1,93 @@
+fontforge-wasm patch 2. Reason: FontForge 20230101 changed how it reads cmap (P2 plan, P2-22): it keeps the first
+code point of a glyph as its primary in every format, where production's 20190801 kept the last in formats 0, 6, 10
+and 12; and it records the other code points while parsing, then UseGivenEncoding adds them again without checking
+(AltUniFigure(..., false)), so SVG output repeats glyph elements. Everything derived from the primary code point
+changed with it (SVG elements, kerning and ligature strings, OS/2 first/last character, CFF blue zones, generated
+glyph names). This restores 20190801's primary per format and keeps the parse-time alternates (the format-14
+lookup needs them), with the later pass checking for duplicates.
+
+--- a/fontforge/fontforge/parsettf.c
++++ b/fontforge/fontforge/parsettf.c
+@@ -4561,6 +4561,37 @@
+     }
+ }
+ 
++/* fontforge-wasm patch 2 (VENDORING.md): FontForge 20190801's choice of the primary code point. In cmap formats
++   0, 6, 10 and 12 20190801 assigned every mapping read to unicodeenc, so the last one won; formats 2, 4 and 8 kept
++   the first (addttfencoding above). Here the last mapping becomes unicodeenc and the code point it displaces is kept
++   as an alternate, put first as 20190801's later AltUniFigure pass ordered them, so that the format-14 lookup
++   below still finds every code point of the glyph. A mapping to -1 changes nothing. */
++static void addttfencoding_last(SplineChar *sc, int unc) {
++    struct altuni *alt, *prev = NULL;
++    if ( unc==-1 || sc->unicodeenc==unc ) {
++	return;
++    } else if ( sc->unicodeenc==-1 ) {
++	sc->unicodeenc = unc;
++	return;
++    }
++    for ( alt = sc->altuni; alt!=NULL; prev = alt, alt = alt->next )
++	if ( alt->unienc==unc && alt->vs==-1 && alt->fid==0 ) {
++	    if ( prev==NULL ) sc->altuni = alt->next; else prev->next = alt->next;
++	    chunkfree(alt, sizeof(struct altuni));
++	    break;
++	}
++    for ( alt = sc->altuni; alt!=NULL && alt->unienc!=sc->unicodeenc; alt = alt->next );
++    if ( alt==NULL ) {
++	alt = chunkalloc(sizeof(struct altuni));
++	alt->unienc = sc->unicodeenc;
++	alt->vs = -1;
++	alt->fid = 0;
++	alt->next = sc->altuni;
++	sc->altuni = alt;
++    }
++    sc->unicodeenc = unc;
++}
++
+ /* 'cmap' table: readttfcmap */
+ static void readttfencodings(FILE *ttf,struct ttfinfo *info, int justinuse) {
+     int i,j, def, unicode_cmap, unicode4_cmap, dcnt, dcmap_cnt, dc;
+@@ -4762,7 +4793,7 @@
+ 			if ( map!=NULL )
+ 			    map->map[i] = table[i];
+ 			if ( dounicode && trans!=NULL )
+-			    addttfencoding(info->chars[table[i]], trans[i]);
++			    addttfencoding_last(info->chars[table[i]], trans[i]);	/* fontforge-wasm patch 2: format 0 */
+ 		    }
+ 		} else if ( table[i]<info->glyph_cnt && info->chars[table[i]]!=NULL )
+ 		    info->inuse[table[i]] = 1;
+@@ -4913,7 +4944,7 @@
+ 		    int gid = getushort(ttf);
+ 		    if ( dounicode ) {
+ 			if ( gid<info->glyph_cnt ) {
+-			    addttfencoding(info->chars[gid], trans!=NULL ? trans[first+i] : first+i);
++			    addttfencoding_last(info->chars[gid], trans!=NULL ? trans[first+i] : first+i);	/* fontforge-wasm patch 2: format 6 */
+ 			    if ( map!=NULL && first+i < map->enccount )
+ 				map->map[first+i] = gid;
+ 			} else
+@@ -5047,7 +5078,7 @@
+ 		for ( i=0; i<count; ++i ) {
+ 		    int gid = getushort(ttf);
+ 		    if ( dounicode )
+-			addttfencoding(info->chars[gid], first+i);
++			addttfencoding_last(info->chars[gid], first+i);	/* fontforge-wasm patch 2: format 10 */
+ 		    if ( map!=NULL && first+i < map->enccount )
+ 			map->map[first+i] = gid;
+ 		}
+@@ -5077,7 +5108,7 @@
+ 		    break;
+ 			} else {
+ 			    if ( dounicode )
+-				addttfencoding(info->chars[startglyph+i-start], i);
++				addttfencoding_last(info->chars[startglyph+i-start], i);	/* fontforge-wasm patch 2: format 12 */
+ 			    if ( map!=NULL && i < map->enccount )
+ 				map->map[i] = startglyph+i-start;
+ 			}
+@@ -5806,7 +5837,7 @@
+     }
+     sf->map = info->map;
+     sf->uni_interp = info->uni_interp;
+-    AltUniFigure(sf,sf->map,false);
++    AltUniFigure(sf,sf->map,true);	/* fontforge-wasm patch 2: never repeat an alternate the cmap parse recorded */
+     NameConsistencyCheck(sf, sf->map);
+ }
+ 

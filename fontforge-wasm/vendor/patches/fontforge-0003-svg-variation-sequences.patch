@@ -1,0 +1,46 @@
+fontforge-wasm patch 3. Reason: FontForge's SVG writer (both 20190801 and 20230101) writes a glyph that has a
+Unicode variation sequence through that sequence only: the element's unicode is the base letter alone (ASCII) or
+the selector alone (anything else), and the glyph is then marked written, so its ordinary <glyph> elements are
+skipped. fontforge-0002 keeps sequences production's 20190801 dropped, so ffconv would lose ordinary mappings
+production keeps (P2-25, B10; owner's decision of 2026-11-18): a sequence element is now written as base +
+selector and no longer stands in for the glyph's ordinary elements.
+
+--- a/fontforge/fontforge/svg.c
++++ b/fontforge/fontforge/svg.c
+@@ -805,14 +805,18 @@
+ 	    /* Not recommended in XML */;
+ 	else if ( encuni>=32 && encuni<127 &&
+ 		encuni!='"' && encuni!='&' &&
+-		encuni!='<' && encuni!='>' )
+-	    fprintf( file, "unicode=\"%c\" ", encuni);
++		encuni!='<' && encuni!='>' ) {
++	    if ( vs!=-1 )	/* fontforge-wasm patch 3: a sequence is its base and its selector */
++		fprintf( file, "unicode=\"%c&#x%x;\" ", encuni, vs);
++	    else
++		fprintf( file, "unicode=\"%c\" ", encuni);
++	}
+ 	else if (( isarabisolated(encuni) || isarabinitial(encuni) || isarabmedial(encuni) || isarabfinal(encuni) ) &&
+ 		(alt = unialt(encuni))!=NULL && alt[1]=='\0' )
+ 	    /* For arabic forms use the base representation in the 0600 block */
+ 	    fprintf( file, "unicode=\"&#x%x;\" ", alt[0]);
+-	else if ( vs!=-1 )
+-	    fprintf( file, "unicode=\"&#x%x;\" ", vs);
++	else if ( vs!=-1 )	/* fontforge-wasm patch 3: base and selector, not the selector alone */
++	    fprintf( file, "unicode=\"&#x%x;&#x%x;\" ", encuni, vs);
+ 	else
+ 	    fprintf( file, "unicode=\"&#x%x;\" ", encuni);
+     }
+@@ -970,8 +974,12 @@
+ 		svg_scdump(file, sf->glyphs[i],defwid,sf->glyphs[i]->unicodeenc,-1,layer);
+ 	    /* Variation selectors should probably be treated as ligatures */
+ 	    for ( altuni = sf->glyphs[i]->altuni; altuni!=NULL; altuni = altuni->next )
+-		if ( altuni->vs!=-1 && altuni->fid==0 )
++		if ( altuni->vs!=-1 && altuni->fid==0 ) {
++		    /* fontforge-wasm patch 3: a sequence element does not stand in for the glyph's ordinary ones */
++		    int ticked = sf->glyphs[i]->ticked;
+ 		    svg_scdump(file, sf->glyphs[i],defwid,altuni->unienc,altuni->vs,layer);
++		    sf->glyphs[i]->ticked = ticked;
++		}
+ 	}
+     }
+     /* And formed arabic before unformed */

@@ -1,0 +1,47 @@
+fontforge-wasm patch 8. Reason: a variable font's GPOS device offsets lead to VariationIndex tables (DeltaFormat
+0x8000), which ReadDeviceTable took for bad device tables (an error each, and bad_ot) and kept as empty tables (no
+corrections). dumpGPOSpairpos set a kerning pair's device bit for any device table and wrote its offset, but wrote no
+bytes for an empty one, so the offsets led into unrelated data: SourceSans3VF-Upright.ttf -> otf (--allow-lossy) had
+1,708 device offsets to no table, and the OpenType Sanitizer rejected GPOS ("Bad device table delta format: 0xffc4";
+production's 20190801 output gives the same messages). ReadDeviceTable now reads 0x8000 as a VariationIndex table:
+no corrections and no error (FontForge writes the default master, which needs no deltas). The kerning-pair writer now
+sets the bit and an offset only for a table it writes, as the single-positioning, pair-value, class-pair and anchor
+writers already do (each tests corrections). The writer is fixed rather than the readers: it is the one writer that
+disagreed, and the fix then holds for an empty table from any reader (a VariationIndex table, a damaged one).
+Owner's decision of 2026-11-18.
+
+--- a/fontforge/fontforge/parsettfatt.c
++++ b/fontforge/fontforge/parsettfatt.c
+@@ -421,7 +421,10 @@
+     adjust->first_pixel_size = getushort(ttf);
+     adjust->last_pixel_size  = getushort(ttf);
+     pack = getushort(ttf);
+-    if ( adjust->first_pixel_size>adjust->last_pixel_size || pack==0 || pack>3 ) {
++    if ( pack==0x8000 ) {	/* fontforge-wasm patch 8: a VariationIndex table (deltas for other instances of a */
++	/* variable font); the default master FontForge writes needs none: no corrections, no error */
++	adjust->first_pixel_size = adjust->last_pixel_size = 0;
++    } else if ( adjust->first_pixel_size>adjust->last_pixel_size || pack==0 || pack>3 ) {
+ 	LogError(_("Bad device table\n" ));
+ 	info->bad_ot = true;
+ 	adjust->first_pixel_size = adjust->last_pixel_size = 0;
+--- a/fontforge/fontforge/tottfgpos.c
++++ b/fontforge/fontforge/tottfgpos.c
+@@ -1018,6 +1018,9 @@
+ static int gposmaskeddumpdevtab(FILE *gpos,DeviceTable *dt,int bits,int mask,
+ 	int next_dev_tab ) {
+ 
++    if ( dt!=NULL && dt->corrections==NULL )	/* fontforge-wasm patch 8: written as no table (DevTabLen 0) */
++	dt = NULL;
++
+     if ( bits&0x10 ) {
+ 	if ( !(mask&0x10) || dt==NULL )
+ 	    putshort(gpos,0);
+@@ -1366,7 +1369,7 @@
+ 		    mask = 0x0008;
+ 		else
+ 		    mask = 0x0004;
+-		if ( kp->adjust!=NULL ) {
++		if ( kp->adjust!=NULL && kp->adjust->corrections!=NULL ) {	/* fontforge-wasm patch 8: a table is written */
+ 		    mask  |= mask<<4;
+ 		    mask2 |= mask2<<4;
+ 		}

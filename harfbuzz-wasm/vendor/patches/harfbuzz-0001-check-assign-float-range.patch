@@ -1,0 +1,30 @@
+--- a/harfbuzz/src/hb-serialize.hh	2026-11-19 00:30:26
++++ b/harfbuzz/src/hb-serialize.hh	2026-11-19 00:30:26
+@@ -273,9 +273,27 @@
+     return true;
+   }
+ 
++  /* harfbuzz-wasm patch 1: a floating-point value is checked against int's range before it is converted (converting a
++   * float outside the destination's range is undefined behaviour; the instancer met one adding an MVAR delta to an
++   * OS/2 field at 32767), then assigned as an integer and compared as before. */
+   template <typename T1, typename T2>
+   bool check_assign (T1 &v1, T2 &&v2, hb_serialize_error_t err_type)
++  {
++    return check_assign_ (v1, std::forward<T2> (v2), err_type,
++			  std::integral_constant<bool, std::is_floating_point<hb_decay<T2>>::value> ());
++  }
++
++  template <typename T1, typename T2>
++  bool check_assign_ (T1 &v1, T2 &&v2, hb_serialize_error_t err_type, std::false_type)
+   { return check_equal (v1 = v2, v2, err_type); }
++
++  template <typename T1, typename T2>
++  bool check_assign_ (T1 &v1, T2 &&v2, hb_serialize_error_t err_type, std::true_type)
++  {
++    if (!(v2 >= -2147483648.0 && v2 <= 2147483647.0)) return err (err_type);
++    long long i = (long long) v2;
++    return check_equal (v1 = i, i, err_type);
++  }
+ 
+   template <typename T> bool propagate_error (T &&obj)
+   { return check_success (!hb_deref (obj).in_error ()); }

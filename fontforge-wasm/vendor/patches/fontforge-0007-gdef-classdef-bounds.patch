@@ -1,0 +1,39 @@
+fontforge-wasm patch 7. Reason: three reads of a malformed table went outside their allocations (found by reading
+the source; each proved by the native ASan run on a fixture changed in memory, N10; line numbers are 20230101's):
+getClassDefTable, format 1, which also reads GSUB's and GPOS's class definitions: a first glyph past the last made
+cnt-start wrap to a large uint16_t, and the loop wrote past the glyph-count array (heap-buffer-overflow at line 350;
+a trap in wasm). readttfgdef: a MarkGlyphSets table with no set had mark_set_names[0] written into malloc(0) (line
+3079); a LigCaretList indexed its coverage array by its own count, past the coverage's glyphs (line 3109). Each check
+changes nothing for a valid font. Owner's decision of 2026-11-18.
+
+--- a/fontforge/fontforge/parsettfatt.c
++++ b/fontforge/fontforge/parsettfatt.c
+@@ -344,7 +344,7 @@
+ 	if ( start+(int) glyphcnt>cnt ) {
+ 	    LogError( _("Bad class def table. start=%d cnt=%d, max glyph=%d\n"), start, glyphcnt, cnt );
+ 	    info->bad_ot = true;
+-	    glyphcnt = cnt-start;
++	    glyphcnt = start<cnt ? cnt-start : 0;	/* fontforge-wasm patch 7: cnt-start wrapped when start>cnt */
+ 	}
+ 	for ( i=0; i<glyphcnt; ++i )
+ 	    glist[start+i] = getushort(ttf);
+@@ -3077,7 +3077,8 @@
+ 		offsets[i]=getlong(ttf);
+ 	    info->mark_sets = malloc(info->mark_set_cnt*sizeof(char *));
+ 	    info->mark_set_names = malloc(info->mark_set_cnt*sizeof(char *));
+-	    info->mark_set_names[0] = NULL;
++	    if ( info->mark_set_cnt>0 )		/* fontforge-wasm patch 7: never into malloc(0) */
++		info->mark_set_names[0] = NULL;
+ 	    for ( i=0; i<info->mark_set_cnt; ++i ) {
+ 		info->mark_set_names[i] = malloc((strlen(format_spec)+10));
+ 		sprintf( info->mark_set_names[i], format_spec, i );
+@@ -3107,7 +3108,8 @@
+         free(lc_offsets);
+         return;
+     }
+-	for ( i=0; i<cnt; ++i ) if ( glyphs[i]<info->glyph_cnt && (sc = info->chars[glyphs[i]])!=NULL ) {
++	/* fontforge-wasm patch 7: and no further than the coverage's own glyphs (its array ends in 0xffff) */
++	for ( i=0; i<cnt && glyphs[i]!=0xffff; ++i ) if ( glyphs[i]<info->glyph_cnt && (sc = info->chars[glyphs[i]])!=NULL ) {
+ 	    fseek(ttf,lclo+lc_offsets[i],SEEK_SET);
+ 	    for ( pst=sc->possub; pst!=NULL && pst->type!=pst_lcaret; pst=pst->next );
+ 	    if ( pst==NULL ) {

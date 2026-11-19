@@ -1,0 +1,133 @@
+fontforge-wasm patch 9. Reason: two defects in GPOS device tables (hinting deltas per ppem), found with patch 8.
+(1) OpenType counts a PairPosFormat1's value-record device offsets "from beginning of the immediate parent table ...
+PairSet table within a PairPosFormat1 lookup subtable", as fontTools and HarfBuzz read them; gposKernSubTable read
+them from the subtable, and dumpGPOSpairpos wrote them from the subtable, with each glyph's tables before its PairSet.
+A conforming font's tables were read at the wrong place (dropped with "Bad device table", or taken from unrelated
+bytes), and every table FontForge wrote was misread by everyone else. Now the reader counts from the PairSet, and the
+writer puts a PairSet's tables after its records and counts from the PairSet. (2) dumpGPOSsimplepos format 2 wrote the
+first glyph's device tables for every glyph while each glyph's offsets counted its own, and followed a NULL pointer
+when the first glyph had none (native: SEGV; wasm: tables missing, offsets past the end). It now writes each glyph's
+own tables. The class-pair writer and reader already count from the subtable, as OpenType says for format 2.
+Owner's decision of 2026-11-18; fixture generated/layout/slick-gpos-devices.ttf (fontconverter-web 7d28e31).
+
+--- a/fontforge/fontforge/parsettfatt.c
++++ b/fontforge/fontforge/parsettfatt.c
+@@ -577,27 +577,29 @@
+ return;
+ 	}
+ 	for ( i=0; i<cnt; ++i ) if ( glyphs[i]<info->glyph_cnt ) {
+-	    fseek(ttf,stoffset+ps_offsets[i],SEEK_SET);
++	    /* fontforge-wasm patch 9: a PairSet's device offsets count from the PairSet (OpenType's ValueRecord) */
++	    int pairset = stoffset+ps_offsets[i];
++	    fseek(ttf,pairset,SEEK_SET);
+ 	    pair_cnt = getushort(ttf);
+ 	    for ( j=0; j<pair_cnt; ++j ) {
+ 		glyph2 = getushort(ttf);
+ 		readvaluerecord(&vr1,vf1,ttf);
+ 		readvaluerecord(&vr2,vf2,ttf);
+ 		if ( isv==2 )
+-		    addPairPos(info, glyphs[i], glyph2,subtable,&vr1,&vr2, stoffset,ttf);
++		    addPairPos(info, glyphs[i], glyph2,subtable,&vr1,&vr2, pairset,ttf);
+ 		else if ( isv ) {
+ 		    if ( addKernPair(info, glyphs[i], glyph2, vr1.yadvance,
+-			    vr1.offYadvanceDev==0?0:stoffset+vr1.offYadvanceDev,
++			    vr1.offYadvanceDev==0?0:pairset+vr1.offYadvanceDev,
+ 			    subtable,isv,ttf))
+-			addPairPos(info, glyphs[i], glyph2,subtable,&vr1,&vr2, stoffset,ttf);
++			addPairPos(info, glyphs[i], glyph2,subtable,&vr1,&vr2, pairset,ttf);
+ 			/* If we've already got kern data for this pair of */
+ 			/*  glyphs, then we can't make it be a true KernPair */
+ 			/*  but we can save the info as a pst_pair */
+ 		} else {
+ 		    if ( addKernPair(info, glyphs[i], glyph2, vr1.xadvance,
+-			    vr1.offXadvanceDev==0?0:stoffset+vr1.offXadvanceDev,
++			    vr1.offXadvanceDev==0?0:pairset+vr1.offXadvanceDev,
+ 			    subtable,isv,ttf))
+-			addPairPos(info, glyphs[i], glyph2,subtable,&vr1,&vr2,stoffset,ttf);
++			addPairPos(info, glyphs[i], glyph2,subtable,&vr1,&vr2,pairset,ttf);
+ 		}
+ 	    }
+ 	}
+--- a/fontforge/fontforge/tottfgpos.c
++++ b/fontforge/fontforge/tottfgpos.c
+@@ -1190,11 +1190,13 @@
+ 	if ( bits&0xf0 ) {
+ 	    for ( cnt2 = 0; glyphs[cnt2]!=NULL; ++cnt2 ) {
+ 		for ( pst=glyphs[cnt2]->possub; pst!=NULL; pst=pst->next ) {
+-		    if ( pst->subtable==sub && pst->type==pst_position ) {
+-			if ( bits&0x10 ) dumpgposdevicetable(gpos,&first->u.pos.adjust->xadjust);
+-			if ( bits&0x20 ) dumpgposdevicetable(gpos,&first->u.pos.adjust->yadjust);
+-			if ( bits&0x40 ) dumpgposdevicetable(gpos,&first->u.pos.adjust->xadv);
+-			if ( bits&0x80 ) dumpgposdevicetable(gpos,&first->u.pos.adjust->yadv);
++		    /* fontforge-wasm patch 9: each glyph's own tables, as its offsets say (was first's for every glyph, */
++		    /*  through a NULL pointer when the first glyph had none) */
++		    if ( pst->subtable==sub && pst->type==pst_position && pst->u.pos.adjust!=NULL ) {
++			if ( bits&0x10 ) dumpgposdevicetable(gpos,&pst->u.pos.adjust->xadjust);
++			if ( bits&0x20 ) dumpgposdevicetable(gpos,&pst->u.pos.adjust->yadjust);
++			if ( bits&0x40 ) dumpgposdevicetable(gpos,&pst->u.pos.adjust->xadv);
++			if ( bits&0x80 ) dumpgposdevicetable(gpos,&pst->u.pos.adjust->yadv);
+ 		    }
+ 		}
+ 	    }
+@@ -1435,27 +1437,9 @@
+ 		fseek(gpos,0,SEEK_END);
+ 	continue;
+ 	    }
+-	    next_dev_tab = ftell(gpos)-start;
+-	    if ( (vf1&0xf0) || (vf2&0xf0) ) {
+-		for ( tot=0 ; tot<seconds[i][0].tot; ++tot ) {
+-		    if ( (pst=seconds[i][tot].pst)!=NULL ) {
+-			if ( pst->u.pair.vr[0].adjust!=NULL ) {
+-			    dumpgposdevicetable(gpos,&pst->u.pair.vr[0].adjust->xadjust);
+-			    dumpgposdevicetable(gpos,&pst->u.pair.vr[0].adjust->yadjust);
+-			    dumpgposdevicetable(gpos,&pst->u.pair.vr[0].adjust->xadv);
+-			    dumpgposdevicetable(gpos,&pst->u.pair.vr[0].adjust->yadv);
+-			}
+-			if ( pst->u.pair.vr[1].adjust!=NULL ) {
+-			    dumpgposdevicetable(gpos,&pst->u.pair.vr[1].adjust->xadjust);
+-			    dumpgposdevicetable(gpos,&pst->u.pair.vr[1].adjust->yadjust);
+-			    dumpgposdevicetable(gpos,&pst->u.pair.vr[1].adjust->xadv);
+-			    dumpgposdevicetable(gpos,&pst->u.pair.vr[1].adjust->yadv);
+-			}
+-		    }
+-		    if ( (kp=seconds[i][tot].kp)!=NULL && kp->adjust!=NULL )
+-			dumpgposdevicetable(gpos,kp->adjust);
+-		}
+-	    }
++	    /* fontforge-wasm patch 9: device offsets count from the PairSet (OpenType's ValueRecord), so its tables */
++	    /*  follow its records (count, then per pair the second glyph and bit_cnt fields) */
++	    next_dev_tab = 2+seconds[i][0].tot*(2+2*bit_cnt);
+ 	    pos = ftell(gpos);
+ 	    fseek(gpos,offset_pos+(i-start_cnt)*sizeof(uint16_t),SEEK_SET);
+ 	    putshort(gpos,pos-start);
+@@ -1489,8 +1473,30 @@
+ 		    gposvrmaskeddump(gpos,vf2,mask2,kp->off);
+ 		    next_dev_tab = gposmaskeddumpdevtab(gpos,kp->adjust,vf2,mask2<<4,
+ 			    next_dev_tab);
++		}
++	    }
++	    if ( (vf1&0xf0) || (vf2&0xf0) ) {	/* fontforge-wasm patch 9: after the PairSet's records */
++		for ( tot=0 ; tot<seconds[i][0].tot; ++tot ) {
++		    if ( (pst=seconds[i][tot].pst)!=NULL ) {
++			if ( pst->u.pair.vr[0].adjust!=NULL ) {
++			    dumpgposdevicetable(gpos,&pst->u.pair.vr[0].adjust->xadjust);
++			    dumpgposdevicetable(gpos,&pst->u.pair.vr[0].adjust->yadjust);
++			    dumpgposdevicetable(gpos,&pst->u.pair.vr[0].adjust->xadv);
++			    dumpgposdevicetable(gpos,&pst->u.pair.vr[0].adjust->yadv);
++			}
++			if ( pst->u.pair.vr[1].adjust!=NULL ) {
++			    dumpgposdevicetable(gpos,&pst->u.pair.vr[1].adjust->xadjust);
++			    dumpgposdevicetable(gpos,&pst->u.pair.vr[1].adjust->yadjust);
++			    dumpgposdevicetable(gpos,&pst->u.pair.vr[1].adjust->xadv);
++			    dumpgposdevicetable(gpos,&pst->u.pair.vr[1].adjust->yadv);
++			}
++		    }
++		    if ( (kp=seconds[i][tot].kp)!=NULL && kp->adjust!=NULL )
++			dumpgposdevicetable(gpos,kp->adjust);
+ 		}
+ 	    }
++	    if ( next_dev_tab!=ftell(gpos)-pos )	/* fontforge-wasm patch 9 */
++		IError( "Device table offsets wrong in pair positioning" );
+ 	}
+ 	end = ftell(gpos);
+ 	fseek(gpos,coverage_pos,SEEK_SET);

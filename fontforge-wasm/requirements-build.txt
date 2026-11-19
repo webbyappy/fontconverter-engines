@@ -1,0 +1,4 @@
+meson==1.10.2
+# GLib 2.78.6's gdbus-codegen imports distutils.version, which Python 3.12 dropped; setuptools provides it
+# (spike S1's Python 3.9 still had it).
+setuptools==80.9.0

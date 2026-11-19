@@ -1,0 +1,704 @@
+{
+ "reader": "fontTools 4.68.0",
+ "fixtures": {
+  "real/var-ttf/OpenSans-VF.ttf": {
+   "flavor": "truetype",
+   "numGlyphs": 1150,
+   "variable": {
+    "axes": [
+     {
+      "tag": "wght",
+      "min": 300,
+      "default": 400,
+      "max": 800,
+      "name": "Weight",
+      "hidden": false
+     },
+     {
+      "tag": "wdth",
+      "min": 75,
+      "default": 100,
+      "max": 100,
+      "name": "Width",
+      "hidden": false
+     }
+    ],
+    "instances": [
+     {
+      "index": 0,
+      "name": "Light",
+      "coordinates": {
+       "wght": 300,
+       "wdth": 100
+      },
+      "postscriptName": "OpenSansRoman-Light"
+     },
+     {
+      "index": 1,
+      "name": "Regular",
+      "coordinates": {
+       "wght": 400,
+       "wdth": 100
+      },
+      "postscriptName": "OpenSansRoman-Regular"
+     },
+     {
+      "index": 2,
+      "name": "SemiBold",
+      "coordinates": {
+       "wght": 600,
+       "wdth": 100
+      },
+      "postscriptName": "OpenSansRoman-SemiBold"
+     },
+     {
+      "index": 3,
+      "name": "Bold",
+      "coordinates": {
+       "wght": 700,
+       "wdth": 100
+      },
+      "postscriptName": "OpenSansRoman-Bold"
+     },
+     {
+      "index": 4,
+      "name": "ExtraBold",
+      "coordinates": {
+       "wght": 800,
+       "wdth": 100
+      },
+      "postscriptName": "OpenSansRoman-ExtraBold"
+     },
+     {
+      "index": 5,
+      "name": "Condensed Light",
+      "coordinates": {
+       "wght": 300,
+       "wdth": 75
+      },
+      "postscriptName": "OpenSansRoman-CondensedLight"
+     },
+     {
+      "index": 6,
+      "name": "Condensed Regular",
+      "coordinates": {
+       "wght": 400,
+       "wdth": 75
+      },
+      "postscriptName": "OpenSansRoman-CondensedRegular"
+     },
+     {
+      "index": 7,
+      "name": "Condensed SemiBold",
+      "coordinates": {
+       "wght": 600,
+       "wdth": 75
+      },
+      "postscriptName": "OpenSansRoman-CondensedSemiBold"
+     },
+     {
+      "index": 8,
+      "name": "Condensed Bold",
+      "coordinates": {
+       "wght": 700,
+       "wdth": 75
+      },
+      "postscriptName": "OpenSansRoman-CondensedBold"
+     },
+     {
+      "index": 9,
+      "name": "Condensed ExtraBold",
+      "coordinates": {
+       "wght": 800,
+       "wdth": 75
+      },
+      "postscriptName": "OpenSansRoman-CondensedExtraBold"
+     }
+    ],
+    "stat": true
+   },
+   "colour": {
+    "colr": null,
+    "cpal": false,
+    "svg": false,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "real/sourcesans-vf/SourceSans3VF-Upright.ttf": {
+   "flavor": "truetype",
+   "numGlyphs": 2478,
+   "variable": {
+    "axes": [
+     {
+      "tag": "wght",
+      "min": 200,
+      "default": 200,
+      "max": 900,
+      "name": "Weight",
+      "hidden": false
+     }
+    ],
+    "instances": [
+     {
+      "index": 0,
+      "name": "ExtraLight",
+      "coordinates": {
+       "wght": 200
+      },
+      "postscriptName": "SourceSans3VF-ExtraLight"
+     },
+     {
+      "index": 1,
+      "name": "Light",
+      "coordinates": {
+       "wght": 300
+      },
+      "postscriptName": "SourceSans3VF-Light"
+     },
+     {
+      "index": 2,
+      "name": "Regular",
+      "coordinates": {
+       "wght": 400
+      },
+      "postscriptName": "SourceSans3VF-Regular"
+     },
+     {
+      "index": 3,
+      "name": "Medium",
+      "coordinates": {
+       "wght": 500
+      },
+      "postscriptName": "SourceSans3VF-Medium"
+     },
+     {
+      "index": 4,
+      "name": "Semibold",
+      "coordinates": {
+       "wght": 600
+      },
+      "postscriptName": "SourceSans3VF-Semibold"
+     },
+     {
+      "index": 5,
+      "name": "Bold",
+      "coordinates": {
+       "wght": 700
+      },
+      "postscriptName": "SourceSans3VF-Bold"
+     },
+     {
+      "index": 6,
+      "name": "Black",
+      "coordinates": {
+       "wght": 900
+      },
+      "postscriptName": "SourceSans3VF-Black"
+     }
+    ],
+    "stat": true
+   },
+   "colour": {
+    "colr": null,
+    "cpal": false,
+    "svg": false,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "real/sourcesans-vf/SourceSans3VF-Upright.otf": {
+   "flavor": "cff2",
+   "numGlyphs": 2478,
+   "variable": {
+    "axes": [
+     {
+      "tag": "wght",
+      "min": 200,
+      "default": 200,
+      "max": 900,
+      "name": "Weight",
+      "hidden": false
+     }
+    ],
+    "instances": [
+     {
+      "index": 0,
+      "name": "ExtraLight",
+      "coordinates": {
+       "wght": 200
+      },
+      "postscriptName": "SourceSans3VF-ExtraLight"
+     },
+     {
+      "index": 1,
+      "name": "Light",
+      "coordinates": {
+       "wght": 300
+      },
+      "postscriptName": "SourceSans3VF-Light"
+     },
+     {
+      "index": 2,
+      "name": "Regular",
+      "coordinates": {
+       "wght": 400
+      },
+      "postscriptName": "SourceSans3VF-Regular"
+     },
+     {
+      "index": 3,
+      "name": "Medium",
+      "coordinates": {
+       "wght": 500
+      },
+      "postscriptName": "SourceSans3VF-Medium"
+     },
+     {
+      "index": 4,
+      "name": "Semibold",
+      "coordinates": {
+       "wght": 600
+      },
+      "postscriptName": "SourceSans3VF-Semibold"
+     },
+     {
+      "index": 5,
+      "name": "Bold",
+      "coordinates": {
+       "wght": 700
+      },
+      "postscriptName": "SourceSans3VF-Bold"
+     },
+     {
+      "index": 6,
+      "name": "Black",
+      "coordinates": {
+       "wght": 900
+      },
+      "postscriptName": "SourceSans3VF-Black"
+     }
+    ],
+    "stat": true
+   },
+   "colour": {
+    "colr": null,
+    "cpal": false,
+    "svg": false,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "real/var-cjk-ttf/NotoSansSC-VF.ttf": {
+   "flavor": "truetype",
+   "numGlyphs": 31036,
+   "variable": {
+    "axes": [
+     {
+      "tag": "wght",
+      "min": 100,
+      "default": 100,
+      "max": 900,
+      "name": "Weight",
+      "hidden": false
+     }
+    ],
+    "instances": [
+     {
+      "index": 0,
+      "name": "Thin",
+      "coordinates": {
+       "wght": 100
+      },
+      "postscriptName": null
+     },
+     {
+      "index": 1,
+      "name": "ExtraLight",
+      "coordinates": {
+       "wght": 200
+      },
+      "postscriptName": null
+     },
+     {
+      "index": 2,
+      "name": "Light",
+      "coordinates": {
+       "wght": 300
+      },
+      "postscriptName": null
+     },
+     {
+      "index": 3,
+      "name": "Regular",
+      "coordinates": {
+       "wght": 400
+      },
+      "postscriptName": null
+     },
+     {
+      "index": 4,
+      "name": "Medium",
+      "coordinates": {
+       "wght": 500
+      },
+      "postscriptName": null
+     },
+     {
+      "index": 5,
+      "name": "SemiBold",
+      "coordinates": {
+       "wght": 600
+      },
+      "postscriptName": null
+     },
+     {
+      "index": 6,
+      "name": "Bold",
+      "coordinates": {
+       "wght": 700
+      },
+      "postscriptName": null
+     },
+     {
+      "index": 7,
+      "name": "ExtraBold",
+      "coordinates": {
+       "wght": 800
+      },
+      "postscriptName": null
+     },
+     {
+      "index": 8,
+      "name": "Black",
+      "coordinates": {
+       "wght": 900
+      },
+      "postscriptName": null
+     }
+    ],
+    "stat": true
+   },
+   "colour": {
+    "colr": null,
+    "cpal": false,
+    "svg": false,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "generated/variable/slick-vf-nostat.ttf": {
+   "flavor": "truetype",
+   "numGlyphs": 7,
+   "variable": {
+    "axes": [
+     {
+      "tag": "wght",
+      "min": 500,
+      "default": 700,
+      "max": 900,
+      "name": "Weight",
+      "hidden": false
+     }
+    ],
+    "instances": [],
+    "stat": false
+   },
+   "colour": {
+    "colr": null,
+    "cpal": false,
+    "svg": false,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "generated/variable/OpenSans-VF-long-name.ttf": {
+   "flavor": "truetype",
+   "numGlyphs": 1150,
+   "variable": {
+    "axes": [
+     {
+      "tag": "wght",
+      "min": 300,
+      "default": 400,
+      "max": 800,
+      "name": "Weight",
+      "hidden": false
+     },
+     {
+      "tag": "wdth",
+      "min": 75,
+      "default": 100,
+      "max": 100,
+      "name": "Width",
+      "hidden": false
+     }
+    ],
+    "instances": [
+     {
+      "index": 0,
+      "name": "Light",
+      "coordinates": {
+       "wght": 300,
+       "wdth": 100
+      },
+      "postscriptName": "OpenSansRoman-Light"
+     },
+     {
+      "index": 1,
+      "name": "Regular",
+      "coordinates": {
+       "wght": 400,
+       "wdth": 100
+      },
+      "postscriptName": "OpenSansRoman-Regular"
+     },
+     {
+      "index": 2,
+      "name": "SemiBold",
+      "coordinates": {
+       "wght": 600,
+       "wdth": 100
+      },
+      "postscriptName": "OpenSansRoman-SemiBold"
+     },
+     {
+      "index": 3,
+      "name": "Bold",
+      "coordinates": {
+       "wght": 700,
+       "wdth": 100
+      },
+      "postscriptName": "OpenSansRoman-Bold"
+     },
+     {
+      "index": 4,
+      "name": "ExtraBold",
+      "coordinates": {
+       "wght": 800,
+       "wdth": 100
+      },
+      "postscriptName": "OpenSansRoman-ExtraBold"
+     },
+     {
+      "index": 5,
+      "name": "Condensed Light",
+      "coordinates": {
+       "wght": 300,
+       "wdth": 75
+      },
+      "postscriptName": "OpenSansRoman-CondensedLight"
+     },
+     {
+      "index": 6,
+      "name": "Condensed Regular",
+      "coordinates": {
+       "wght": 400,
+       "wdth": 75
+      },
+      "postscriptName": "OpenSansRoman-CondensedRegular"
+     },
+     {
+      "index": 7,
+      "name": "Condensed SemiBold",
+      "coordinates": {
+       "wght": 600,
+       "wdth": 75
+      },
+      "postscriptName": "OpenSansRoman-CondensedSemiBold"
+     },
+     {
+      "index": 8,
+      "name": "Condensed Bold",
+      "coordinates": {
+       "wght": 700,
+       "wdth": 75
+      },
+      "postscriptName": "OpenSansRoman-CondensedBold"
+     },
+     {
+      "index": 9,
+      "name": "Condensed ExtraBold",
+      "coordinates": {
+       "wght": 800,
+       "wdth": 75
+      },
+      "postscriptName": "OpenSansRoman-CondensedExtraBold"
+     }
+    ],
+    "stat": true
+   },
+   "colour": {
+    "colr": null,
+    "cpal": false,
+    "svg": false,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "real/var-colr/Nabla[EDPT,EHLT].ttf": {
+   "flavor": "truetype",
+   "numGlyphs": 3655,
+   "variable": {
+    "axes": [
+     {
+      "tag": "EDPT",
+      "min": 0,
+      "default": 100,
+      "max": 200,
+      "name": "Extrusion Depth",
+      "hidden": false
+     },
+     {
+      "tag": "EHLT",
+      "min": 0,
+      "default": 12,
+      "max": 24,
+      "name": "Edge Highlight",
+      "hidden": false
+     }
+    ],
+    "instances": [
+     {
+      "index": 0,
+      "name": "Regular",
+      "coordinates": {
+       "EDPT": 100,
+       "EHLT": 12
+      },
+      "postscriptName": "Nabla-Regular"
+     }
+    ],
+    "stat": true
+   },
+   "colour": {
+    "colr": 1,
+    "cpal": true,
+    "svg": true,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "generated/colour/Twemoji-cff2-vf.otf": {
+   "flavor": "cff2",
+   "numGlyphs": 375,
+   "variable": {
+    "axes": [
+     {
+      "tag": "wght",
+      "min": 400,
+      "default": 400,
+      "max": 700,
+      "name": "Weight",
+      "hidden": false
+     }
+    ],
+    "instances": [],
+    "stat": false
+   },
+   "colour": {
+    "colr": 0,
+    "cpal": true,
+    "svg": false,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "generated/variable/SourceSans3-static.cff2.otf": {
+   "flavor": "cff2",
+   "numGlyphs": 2478,
+   "variable": null,
+   "colour": {
+    "colr": null,
+    "cpal": false,
+    "svg": false,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "samples/slick.ttf": {
+   "flavor": "truetype",
+   "numGlyphs": 7,
+   "variable": null,
+   "colour": {
+    "colr": null,
+    "cpal": false,
+    "svg": false,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "real/twemoji/Twemoji.Mozilla.ttf": {
+   "flavor": "truetype",
+   "numGlyphs": 13723,
+   "variable": null,
+   "colour": {
+    "colr": 0,
+    "cpal": true,
+    "svg": false,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "real/color-colr/Noto-COLRv1.ttf": {
+   "flavor": "truetype",
+   "numGlyphs": 41863,
+   "variable": null,
+   "colour": {
+    "colr": 1,
+    "cpal": true,
+    "svg": false,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "real/color-cbdt/NotoColorEmoji.ttf": {
+   "flavor": "none",
+   "numGlyphs": 4027,
+   "variable": null,
+   "colour": {
+    "colr": null,
+    "cpal": false,
+    "svg": false,
+    "sbix": false,
+    "cbdt": true
+   }
+  },
+  "generated/special/slick-sbix.ttf": {
+   "flavor": "truetype",
+   "numGlyphs": 7,
+   "variable": null,
+   "colour": {
+    "colr": null,
+    "cpal": false,
+    "svg": false,
+    "sbix": true,
+    "cbdt": false
+   }
+  },
+  "generated/special/slick-svg-table.ttf": {
+   "flavor": "truetype",
+   "numGlyphs": 7,
+   "variable": null,
+   "colour": {
+    "colr": null,
+    "cpal": false,
+    "svg": true,
+    "sbix": false,
+    "cbdt": false
+   }
+  },
+  "generated/colour/Twemoji-cff.otf": {
+   "flavor": "cff",
+   "numGlyphs": 375,
+   "variable": null,
+   "colour": {
+    "colr": 0,
+    "cpal": true,
+    "svg": false,
+    "sbix": false,
+    "cbdt": false
+   }
+  }
+ }
+}

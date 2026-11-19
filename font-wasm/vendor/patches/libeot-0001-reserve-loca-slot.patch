@@ -1,0 +1,14 @@
+--- a/libeot/src/ctf/parseCTF.c
++++ b/libeot/src/ctf/parseCTF.c
+@@ -697,7 +697,10 @@
+   if (sResult != EOT_STREAM_OK) {
+     return EOT_CORRUPT_FILE;
+   }
+-  result = reserveTables(*out, offsetTable.numTables);
++  // font-wasm patch 1: one slot more than the directory lists, for the loca table added below when the font has glyf
++  // but no loca; without it addTable reallocates the array while head, maxp and hmtx still point into it (a use after
++  // free, found by fontwrap's mutation sweep). See font-wasm/VENDORING.md.
++  result = reserveTables(*out, offsetTable.numTables + 1);
+   if (result != EOT_SUCCESS) {
+     return result;
+   }

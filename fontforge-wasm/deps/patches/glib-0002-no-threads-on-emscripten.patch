@@ -1,0 +1,22 @@
+fontforge-wasm patch glib-0002. Reason: under Emscripten, meson's threads dependency adds -pthread, so GLib is
+compiled with atomic instructions while ffconv links no threads; the wasm then fails validation without the
+threads feature (N11). GLib keeps its POSIX thread implementation; Emscripten's single-threaded libc supplies the
+pthread functions, exactly as a module without threads already gets at run time.
+
+--- a/meson.build
++++ b/meson.build
+@@ -1974,7 +1974,13 @@
+   glibconfig_conf.set('g_threads_impl_def', 'WIN32')
+   glib_conf.set('THREADS_WIN32', 1)
+ else
+-  thread_dep = dependency('threads')
++  # fontforge-wasm patch glib-0002: ffconv is a single-threaded module. Under Emscripten meson's threads
++  # dependency adds -pthread, which compiles atomic instructions into a module that has no threads (P2 plan, N11).
++  if host_system == 'emscripten'
++    thread_dep = []
++  else
++    thread_dep = dependency('threads')
++  endif
+   threads_implementation = 'posix'
+   pthread_prefix = '''
+       #ifndef _GNU_SOURCE

@@ -1,0 +1,2 @@
+# Build trees, the archive cache and the private Emscripten cache are never committed; output/ IS committed.
+build/

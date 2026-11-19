@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ffconv browser harness</title>
+</head>
+<body>
+<!-- A real file input: the driver uploads through it with Playwright's setInputFiles (P2 plan, P2-17). -->
+<input id="files" type="file" multiple>
+<pre id="status">waiting</pre>
+<script>
+  // Hands the uploaded File objects, the job list and the environment to the classic worker; returns its report.
+  window.runJobs = (jobs, env) => new Promise((resolve, reject) => {
+    const files = Array.from(document.getElementById('files').files);
+    const worker = new Worker('/test-ffconv-browser-worker.js');
+    worker.onmessage = (e) => { document.getElementById('status').textContent = 'done'; resolve(e.data); };
+    worker.onerror = (e) => reject(new Error(e.message || 'worker error'));
+    worker.postMessage({ files, jobs, env });
+  });
+</script>
+</body>
+</html>

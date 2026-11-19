@@ -1,0 +1,3 @@
+# Build trees (wasm objects, staging, the native ASan build, the downloaded release archive).
+build/
+# output/ IS committed: hbfont.js, hbfont.wasm and BUILD-INFO.txt are the shipped engine.

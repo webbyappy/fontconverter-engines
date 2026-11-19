@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>hbfont browser harness</title></head>
+<body>
+<input type="file" id="files" multiple>
+<pre id="status">waiting</pre>
+<script>
+  // The page compiles hbfont.wasm once and posts the module to each worker (P3b-2); a worker given none compiles its
+  // own. `clone` = 'fail' posts something that cannot be cloned first, as a browser that cannot clone a module would.
+  let compiled = null;
+  async function moduleOnce() {
+    compiled = compiled || await WebAssembly.compileStreaming(fetch('/hbfont.wasm'));
+    return compiled;
+  }
+  function files() {
+    return Array.from(document.getElementById('files').files);
+  }
+  window.runWorker = async (msg, clone) => {
+    const mod = await moduleOnce();
+    return new Promise((resolve, reject) => {
+      const w = new Worker('/test-hbfont-browser-worker.js');
+      w.onerror = (e) => reject(new Error(e.message || 'worker error'));
+      let sent = 'posted';
+      try {
+        if (clone === 'fail') w.postMessage({ ...msg, files: files(), module: mod, poison: () => 0 });
+        else w.postMessage({ ...msg, files: files(), module: clone === 'none' ? null : mod });
+      } catch (err) {
+        sent = String(err && err.name);  // DataCloneError: post without the module
+        w.postMessage({ ...msg, files: files(), module: null });
+      }
+      w.onmessage = (e) => { resolve({ ...e.data, sent }); w.terminate(); };
+    });
+  };
+  // Draws `text` in the font of file `name` on a canvas; returns its RGBA pixels and size.
+  window.draw = async (name, text) => {
+    const file = files().find((f) => f.name === name);
+    const face = new FontFace('f' + Math.random().toString(36).slice(2), await file.arrayBuffer());
+    try {
+      await face.load();
+    } catch (err) {
+      return { error: String(err && err.message ? err.message : err) };  // the browser refused the font
+    }
+    document.fonts.add(face);
+    const c = document.createElement('canvas');
+    c.width = 1700;
+    c.height = 110;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = '#000000';
+    g.font = `64px "${face.family}"`;
+    g.textBaseline = 'alphabetic';
+    g.fillText(text, 10, 80);
+    const data = g.getImageData(0, 0, c.width, c.height).data;
+    document.fonts.delete(face);
+    return { pixels: Array.from(data) };
+  };
+</script>
+</body>
+</html>

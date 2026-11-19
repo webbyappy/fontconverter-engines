@@ -1,0 +1,16 @@
+fontforge-wasm patch 4. Reason: CIDFlatten moves a CID-keyed font's lookups, kerning, names and features from the CID
+master to the flattened font, but not its anchor classes; the master is then freed with them, so every anchor point
+of the moved glyphs refers to freed memory, and writing the font (SFFindUnusedLookups) writes into it. Production's
+FontForge 20190801 has the same omission. Found by the native ASan run (P2 plan, C1; owner's decision of 2026-11-18).
+
+--- a/fontforge/fontforge/encoding.c
++++ b/fontforge/fontforge/encoding.c
+@@ -1448,6 +1448,8 @@
+ 	bdf->sf = new;
+     new->gpos_lookups = cidmaster->gpos_lookups;
+     cidmaster->gpos_lookups = NULL;
++    new->anchor = cidmaster->anchor;	/* fontforge-wasm patch 4: the glyphs' anchor points refer to these */
++    cidmaster->anchor = NULL;
+     new->gsub_lookups = cidmaster->gsub_lookups;
+     cidmaster->gsub_lookups = NULL;
+     new->kerns = cidmaster->kerns; new->vkerns = cidmaster->vkerns;

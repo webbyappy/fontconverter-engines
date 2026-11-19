@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>fontwrap browser harness</title>
+</head>
+<body>
+<!-- A real file input: the driver uploads through it with Playwright's setInputFiles (P1 plan, section 3.7). -->
+<input id="files" type="file" multiple>
+<pre id="status">waiting</pre>
+<script>
+  // Hands the uploaded File objects and the job list to the classic worker and returns its report.
+  window.runJobs = (jobs) => new Promise((resolve, reject) => {
+    const files = Array.from(document.getElementById('files').files);
+    const worker = new Worker('/test-font-browser-worker.js');
+    worker.onmessage = (e) => { document.getElementById('status').textContent = 'done'; resolve(e.data); };
+    worker.onerror = (e) => reject(new Error(e.message || 'worker error'));
+    worker.postMessage({ files, jobs });
+  });
+  window.runOom = (name, argv) => new Promise((resolve, reject) => {
+    const file = Array.from(document.getElementById('files').files).find((f) => f.name === name);
+    const worker = new Worker('/test-font-browser-worker.js');
+    worker.onmessage = (e) => resolve(e.data);
+    worker.onerror = (e) => reject(new Error(e.message || 'worker error'));
+    worker.postMessage({ kind: 'oom', file, argv });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+--- a/harfbuzz/src/hb-ot-layout-common.hh	2026-11-19 01:13:24
++++ b/harfbuzz/src/hb-ot-layout-common.hh	2026-11-19 01:13:24
+@@ -91,11 +91,13 @@
+   hb_prune_langsys_context_t (const void         *table_,
+                               hb_hashmap_t<unsigned, hb::unique_ptr<hb_set_t>> *script_langsys_map_,
+                               const hb_map_t     *duplicate_feature_map_,
+-                              hb_set_t           *new_collected_feature_indexes_)
++                              hb_set_t           *new_collected_feature_indexes_,
++                              bool                keep_duplicate_langsys_ = false)
+       :table (table_),
+       script_langsys_map (script_langsys_map_),
+       duplicate_feature_map (duplicate_feature_map_),
+       new_feature_indexes (new_collected_feature_indexes_),
++      keep_duplicate_langsys (keep_duplicate_langsys_),
+       script_count (0),langsys_feature_count (0) {}
+ 
+   bool visitScript ()
+@@ -112,6 +114,8 @@
+   hb_hashmap_t<unsigned, hb::unique_ptr<hb_set_t>> *script_langsys_map;
+   const hb_map_t     *duplicate_feature_map;
+   hb_set_t           *new_feature_indexes;
++  /* harfbuzz-wasm patch 3: keep a LangSys equal to its script's DefaultLangSys (see Script::prune_langsys). */
++  bool                keep_duplicate_langsys;
+ 
+   private:
+   unsigned script_count;
+@@ -1165,7 +1169,10 @@
+       {
+         const LangSys& l = this+_.second.offset;
+         if (!c->visitLangsys (l.get_feature_count ())) continue;
+-        if (l.compare (d, c->duplicate_feature_map)) continue;
++        /* harfbuzz-wasm patch 3: when every axis is pinned (an instance), a LangSys equal to the default is kept, as
++         * fontTools' instancer keeps it: an application that lists a font's language systems would lose it.
++         * Shaping is the same either way (a missing LangSys falls back to the default). */
++        if (!c->keep_duplicate_langsys && l.compare (d, c->duplicate_feature_map)) continue;
+ 
+         l.collect_features (c);
+         c->script_langsys_map->get (script_index)->add (_.first);
+--- a/harfbuzz/src/hb-ot-layout-gsubgpos.hh	2026-11-19 01:13:24
++++ b/harfbuzz/src/hb-ot-layout-gsubgpos.hh	2026-11-19 01:13:24
+@@ -6591,9 +6591,11 @@
+   void prune_langsys (const hb_map_t *duplicate_feature_map,
+                       const hb_set_t *layout_scripts,
+                       hb_hashmap_t<unsigned, hb::unique_ptr<hb_set_t>> *script_langsys_map,
+-                      hb_set_t       *new_feature_indexes /* OUT */) const
++                      hb_set_t       *new_feature_indexes /* OUT */,
++                      bool            keep_duplicate_langsys = false /* harfbuzz-wasm patch 3 */) const
+   {
+-    hb_prune_langsys_context_t c (this, script_langsys_map, duplicate_feature_map, new_feature_indexes);
++    hb_prune_langsys_context_t c (this, script_langsys_map, duplicate_feature_map, new_feature_indexes,
++                                  keep_duplicate_langsys);
+ 
+     unsigned count = get_script_count ();
+     for (unsigned script_index = 0; script_index < count; script_index++)
+--- a/harfbuzz/src/hb-subset-plan-layout.cc	2026-11-19 01:13:24
++++ b/harfbuzz/src/hb-subset-plan-layout.cc	2026-11-19 01:13:24
+@@ -451,7 +451,9 @@
+                                     plan->all_axes_pinned, &duplicate_feature_map);
+ 
+   feature_indices.clear ();
+-  table->prune_langsys (&duplicate_feature_map, &plan->layout_scripts, langsys_map, &feature_indices);
++  /* harfbuzz-wasm patch 3: an instance (every axis pinned) keeps a LangSys equal to its script's default. */
++  table->prune_langsys (&duplicate_feature_map, &plan->layout_scripts, langsys_map, &feature_indices,
++                        plan->all_axes_pinned);
+   remap_feature_indices (feature_indices, duplicate_feature_map, catch_all_record_idx_feature_map, features, features_w_duplicates);
+ 
+ #ifndef HB_NO_VAR

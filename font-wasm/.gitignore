@@ -1,0 +1,3 @@
+# Build trees (wasm objects, staging links, the native ASan build, downloaded archives).
+build/
+# output/ IS committed: fontwrap.js, fontwrap.wasm and BUILD-INFO.txt are the shipped engine.
